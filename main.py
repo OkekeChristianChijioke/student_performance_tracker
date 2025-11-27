@@ -115,6 +115,62 @@ def get_summaries_from_csv(filepath: str):
     return summaries
 
 
+def show_subject_averages():
+    print("\n=== SUBJECT AVERAGES FROM CSV ===")
+    filepath = "students_scores.csv"
+
+    try:
+        students_rows = read_students_scores_from_csv(filepath)
+    except FileNotFoundError:
+        print(f"Could not find file: {filepath}")
+        return
+
+    if not students_rows:
+        print("No student data found in CSV.")
+        return
+
+    # We will collect totals and counts per subject (i.e. per column except 'name')
+    subject_totals = {}   # e.g. {"math": 210.0, "english": 195.0}
+    subject_counts = {}   # e.g. {"math": 3, "english": 3}
+
+    for row in students_rows:
+        for key, value in row.items():
+            if key.lower() == "name":
+                # Skip the name column
+                continue
+
+            if value is None or value == "":
+                # Skip empty cells
+                continue
+
+            try:
+                score = float(value)
+            except ValueError:
+                # Skip any non-numeric value
+                print(f"Warning: could not convert value '{value}' in column '{key}' to a number. Skipping.")
+                continue
+
+            # Initialize if seeing this subject for the first time
+            if key not in subject_totals:
+                subject_totals[key] = 0.0
+                subject_counts[key] = 0
+
+            subject_totals[key] += score
+            subject_counts[key] += 1
+
+    if not subject_totals:
+        print("No numeric scores found for any subject.")
+        return
+
+    print("\n--- Subject Averages ---")
+    for subject, total in subject_totals.items():
+        count = subject_counts[subject]
+        average = total / count if count > 0 else 0.0
+        print(f"{subject}: {average:.2f}")
+    print()
+
+
+
 def process_students_from_csv():
     print("\n=== PROCESSING STUDENTS FROM CSV ===")
     filepath = "students_scores.csv"
@@ -130,6 +186,7 @@ def process_students_from_csv():
         print(f"Average: {summary['average']:.2f}")
         print(f"Grade  : {summary['grade']}")
     print()
+
 
 def generate_report_csv():
     print("\n=== GENERATE STUDENT REPORT CSV ===")
@@ -153,13 +210,15 @@ def print_menu():
     print("3. Enter a single student and scores")
     print("4. Process all students from CSV")
     print("5. Generate report CSV")
-    print("6. Exit")
+    print("6. Show subject averages from CSV")
+    print("7. Exit")
+
 
 
 def main():
     while True:
         print_menu()
-        choice = input("Choose an option (1–6): ").strip()
+        choice = input("Choose an option (1–7): ").strip()
 
         if choice == "1":
             demo_dates()
@@ -172,10 +231,13 @@ def main():
         elif choice == "5":
             generate_report_csv()
         elif choice == "6":
+            show_subject_averages()
+        elif choice == "7":
             print("Exiting... Goodbye!")
             break
         else:
-            print("Invalid choice. Please enter a number from 1 to 6.")
+            print("Invalid choice. Please enter a number from 1 to 7.")
+
 
 
 
