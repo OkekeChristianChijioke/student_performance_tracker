@@ -15,3 +15,15 @@ def read_students_scores_from_csv(filepath: str) -> List[Dict[str, str]]:
         for row in reader:
             students.append(row)
     return students
+
+
+def find_student_row_by_name(filepath: str, name: str):
+    """
+    Find a student row in the CSV by exact name match (case-insensitive).
+    Returns the row dict or None if not found.
+    """
+    rows = read_students_scores_from_csv(filepath)
+    for row in rows:
+        if row.get("name", "").strip().lower() == name.strip().lower():
+            return row
+    return None

@@ -1,6 +1,7 @@
 #student performance tracker v1
 # main.py
 from report_io import write_student_summaries_to_csv
+from pdf_reports import generate_student_pdf
 
 
 from date_utils import (
@@ -16,7 +17,8 @@ from grades_utils import (
     calculate_student_summary,
     parse_scores_input,
 )
-from data_io import read_students_scores_from_csv
+
+from data_io import read_students_scores_from_csv, find_student_row_by_name
 
 
 # ---------- DEMO / FEATURE FUNCTIONS ----------
@@ -75,6 +77,77 @@ def interactive_single_student():
     print(f"Average: {summary['average']:.2f}")
     print(f"Grade  : {summary['grade']}")
     print()
+
+
+def generate_single_student_pdf_interactive():
+    print("\n=== GENERATE SINGLE STUDENT PDF REPORT ===")
+    name = input("Enter student's full name: ").strip()
+    student_class = input("Enter student's class (e.g. JS2A): ").strip()
+
+    # For now we ask for days present/absent manually
+    days_present_str = input("Enter number of days present (leave blank if unknown): ").strip()
+    days_absent_str = input("Enter number of days absent (leave blank if unknown): ").strip()
+
+    days_present = int(days_present_str) if days_present_str else None
+    days_absent = int(days_absent_str) if days_absent_str else None
+
+    # Enter subjects and scores
+    print("Enter subjects and scores. Type 'done' as subject name when finished.")
+    subjects = []
+    total_score = 0.0
+
+    while True:
+        subject_name = input("Subject name (or 'done' to finish): ").strip()
+        if subject_name.lower() == "done":
+            break
+
+        score_str = input(f"Score for {subject_name}: ").strip()
+        try:
+            score = float(score_str)
+        except ValueError:
+            print("Invalid score. Please enter a number.")
+            continue
+
+        subjects.append({"name": subject_name, "score": score})
+        total_score += score
+
+    if not subjects:
+        print("No subjects entered. Cannot generate report.")
+        return
+
+    # Compute averages
+    num_subjects = len(subjects)
+    average = total_score / num_subjects
+
+    # We can reuse get_grade for the overall average
+    grade = get_grade(average)
+
+    # For now, class_average is unknown; you can plug in real value later
+    class_average = None
+
+    # Optional teacher's comment
+    comment = input("Enter teacher's comment (optional, press Enter to skip): ").strip()
+    if not comment:
+        comment = None
+
+    report_data = {
+        "name": name,
+        "student_class": student_class,
+        "days_present": days_present,
+        "days_absent": days_absent,
+        "subjects": subjects,
+        "total_score": total_score,
+        "average": average,
+        "class_average": class_average,
+        "grade": grade,
+        "comment": comment,
+    }
+
+    # File name based on student name
+    safe_name = name.replace(" ", "_")
+    output_path = f"{safe_name}_report.pdf"
+
+    generate_student_pdf(report_data, output_path)
 
 
 def get_summaries_from_csv(filepath: str):
@@ -170,6 +243,38 @@ def show_subject_averages():
     print()
 
 
+def show_class_summary():
+    print("\n=== CLASS SUMMARY FROM CSV ===")
+    filepath = "students_scores.csv"
+
+    # Reuse our existing helper to get summaries
+    summaries = get_summaries_from_csv(filepath)
+    if not summaries:
+        print("No student summaries available.")
+        return
+
+    # Number of students
+    num_students = len(summaries)
+
+    # Extract averages
+    averages = [s["average"] for s in summaries]
+
+    # Class average
+    class_average = sum(averages) / num_students if num_students > 0 else 0.0
+
+    # Best and worst students by average
+    best_student = max(summaries, key=lambda s: s["average"])
+    worst_student = min(summaries, key=lambda s: s["average"])
+
+    print("\n--- Class Summary ---")
+    print(f"Number of students : {num_students}")
+    print(f"Class average      : {class_average:.2f}")
+    print(f"Top student        : {best_student['name']} "
+          f"({best_student['average']:.2f}, grade {best_student['grade']})")
+    print(f"Lowest student     : {worst_student['name']} "
+          f"({worst_student['average']:.2f}, grade {worst_student['grade']})")
+    print()
+
 
 def process_students_from_csv():
     print("\n=== PROCESSING STUDENTS FROM CSV ===")
@@ -201,6 +306,92 @@ def generate_report_csv():
     write_student_summaries_to_csv(output_filepath, summaries)
 
 
+def generate_student_pdf_from_csv():
+    print("\n=== GENERATE STUDENT PDF REPORT FROM CSV ===")
+    filepath = "students_scores.csv"
+
+    student_name = input("Enter student's full name (as in CSV): ").strip()
+    if not student_name:
+        print("No name entered.")
+        return
+
+    try:
+        row = find_student_row_by_name(filepath, student_name)
+    except FileNotFoundError:
+        print(f"Could not find file: {filepath}")
+        return
+
+    if row is None:
+        print(f"Student '{student_name}' not found in {filepath}.")
+        return
+
+    # Build subjects list from all columns except 'name'
+    subjects = []
+    total_score = 0.0
+
+    for key, value in row.items():
+        if key.lower() == "name":
+            continue
+        if value is None or value == "":
+            continue
+
+        try:
+            score = float(value)
+        except ValueError:
+            print(f"Warning: could not convert value '{value}' for subject '{key}'. Skipping.")
+            continue
+
+        subjects.append({"name": key, "score": score})
+        total_score += score
+
+    if not subjects:
+        print("No valid subjects/scores found for this student.")
+        return
+
+    num_subjects = len(subjects)
+    average = total_score / num_subjects
+
+    # Reuse your grading function
+    grade = get_grade(average)
+
+    # For now we don't have class, days_present, days_absent in CSV
+    # We'll leave them as placeholders or N/A
+    student_class = "N/A"
+    days_present = None
+    days_absent = None
+
+    # Optional: get overall class average using your existing helper
+    summaries = get_summaries_from_csv(filepath)
+    if summaries:
+        class_averages = [s["average"] for s in summaries]
+        class_average = sum(class_averages) / len(class_averages)
+    else:
+        class_average = None
+
+    # Optional teacher comment
+    comment = input("Enter teacher's comment for this student (optional, Enter to skip): ").strip()
+    if not comment:
+        comment = None
+
+    report_data = {
+        "name": row.get("name", student_name),
+        "student_class": student_class,
+        "days_present": days_present,
+        "days_absent": days_absent,
+        "subjects": subjects,
+        "total_score": total_score,
+        "average": average,
+        "class_average": class_average,
+        "grade": grade,
+        "comment": comment,
+    }
+
+    safe_name = report_data["name"].replace(" ", "_")
+    output_path = f"{safe_name}_report.pdf"
+
+    generate_student_pdf(report_data, output_path)
+
+
 # ---------- MENU SYSTEM ----------
 
 def print_menu():
@@ -211,14 +402,17 @@ def print_menu():
     print("4. Process all students from CSV")
     print("5. Generate report CSV")
     print("6. Show subject averages from CSV")
-    print("7. Exit")
+    print("7. Show class summary from CSV")
+    print("8. Generate PDF report for one student (interactive)")
+    print("9. Generate PDF report for one student (from CSV)")
+    print("10. Exit")
 
 
 
 def main():
     while True:
         print_menu()
-        choice = input("Choose an option (1–7): ").strip()
+        choice = input("Choose an option (1–10): ").strip()
 
         if choice == "1":
             demo_dates()
@@ -233,10 +427,17 @@ def main():
         elif choice == "6":
             show_subject_averages()
         elif choice == "7":
+            show_class_summary()
+        elif choice == "8":
+            generate_single_student_pdf_interactive()
+        elif choice == "9":
+            generate_student_pdf_from_csv()
+        elif choice == "10":
             print("Exiting... Goodbye!")
             break
         else:
-            print("Invalid choice. Please enter a number from 1 to 7.")
+            print("Invalid choice. Please enter a number from 1 to 10.")
+
 
 
 
