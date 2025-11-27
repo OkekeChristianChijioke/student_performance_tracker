@@ -1,6 +1,5 @@
 #student performance tracker v1
 # main.py
-from data_io import read_students_scores_from_csv
 
 from date_utils import (
     get_today_date,
@@ -15,10 +14,13 @@ from grades_utils import (
     calculate_student_summary,
     parse_scores_input,
 )
+from data_io import read_students_scores_from_csv
 
+
+# ---------- DEMO / FEATURE FUNCTIONS ----------
 
 def demo_dates():
-    print("=== DATE UTILITIES DEMO ===")
+    print("\n=== DATE UTILITIES DEMO ===")
     print("Today's date:", get_today_date())
 
     print("In 10 days it will be:", add_days_to_today(10))
@@ -34,7 +36,7 @@ def demo_dates():
 
 
 def demo_grades():
-    print("=== GRADES UTILITIES DEMO ===")
+    print("\n=== GRADES UTILITIES DEMO ===")
 
     student_name = "John Doe"
     scores = [75, 68, 80, 72]
@@ -49,7 +51,7 @@ def demo_grades():
 
 
 def interactive_single_student():
-    print("=== SINGLE STUDENT INTERACTIVE INPUT ===")
+    print("\n=== SINGLE STUDENT INTERACTIVE INPUT ===")
     name = input("Enter student's name: ").strip()
     scores_str = input("Enter scores separated by commas (e.g. 70, 65, 80): ")
 
@@ -72,8 +74,9 @@ def interactive_single_student():
     print(f"Grade  : {summary['grade']}")
     print()
 
+
 def process_students_from_csv():
-    print("=== PROCESSING STUDENTS FROM CSV ===")
+    print("\n=== PROCESSING STUDENTS FROM CSV ===")
     filepath = "students_scores.csv"  # same folder
 
     try:
@@ -112,11 +115,35 @@ def process_students_from_csv():
     print()
 
 
+# ---------- MENU SYSTEM ----------
+
+def print_menu():
+    print("\n=== STUDENT PERFORMANCE TRACKER ===")
+    print("1. Demo date utilities")
+    print("2. Demo grading utilities")
+    print("3. Enter a single student and scores")
+    print("4. Process all students from CSV")
+    print("5. Exit")
+
+
 def main():
-    demo_dates()
-    demo_grades()
-    interactive_single_student()
-    process_students_from_csv()
+    while True:
+        print_menu()
+        choice = input("Choose an option (1–5): ").strip()
+
+        if choice == "1":
+            demo_dates()
+        elif choice == "2":
+            demo_grades()
+        elif choice == "3":
+            interactive_single_student()
+        elif choice == "4":
+            process_students_from_csv()
+        elif choice == "5":
+            print("Exiting... Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please enter a number from 1 to 5.")
 
 
 if __name__ == "__main__":
