@@ -1,5 +1,7 @@
 #student performance tracker v1
 # main.py
+from report_io import write_student_summaries_to_csv
+
 
 from date_utils import (
     get_today_date,
@@ -75,19 +77,21 @@ def interactive_single_student():
     print()
 
 
-def process_students_from_csv():
-    print("\n=== PROCESSING STUDENTS FROM CSV ===")
-    filepath = "students_scores.csv"  # same folder
-
+def get_summaries_from_csv(filepath: str):
+    """
+    Read students from a CSV and return a list of summary dicts.
+    """
     try:
         students_rows = read_students_scores_from_csv(filepath)
     except FileNotFoundError:
         print(f"Could not find file: {filepath}")
-        return
+        return []
 
     if not students_rows:
         print("No student data found in CSV.")
-        return
+        return []
+
+    summaries = []
 
     for row in students_rows:
         name = row.get("name", "Unknown").strip()
@@ -106,13 +110,38 @@ def process_students_from_csv():
             continue
 
         summary = calculate_student_summary(name, score_values)
+        summaries.append(summary)
 
+    return summaries
+
+
+def process_students_from_csv():
+    print("\n=== PROCESSING STUDENTS FROM CSV ===")
+    filepath = "students_scores.csv"
+
+    summaries = get_summaries_from_csv(filepath)
+    if not summaries:
+        return
+
+    for summary in summaries:
         print("\n--- Student Summary ---")
         print(f"Name   : {summary['name']}")
         print(f"Scores : {summary['scores']}")
         print(f"Average: {summary['average']:.2f}")
         print(f"Grade  : {summary['grade']}")
     print()
+
+def generate_report_csv():
+    print("\n=== GENERATE STUDENT REPORT CSV ===")
+    input_filepath = "students_scores.csv"
+    output_filepath = "students_report.csv"
+
+    summaries = get_summaries_from_csv(input_filepath)
+    if not summaries:
+        print("No summaries generated. Report not created.")
+        return
+
+    write_student_summaries_to_csv(output_filepath, summaries)
 
 
 # ---------- MENU SYSTEM ----------
@@ -123,13 +152,14 @@ def print_menu():
     print("2. Demo grading utilities")
     print("3. Enter a single student and scores")
     print("4. Process all students from CSV")
-    print("5. Exit")
+    print("5. Generate report CSV")
+    print("6. Exit")
 
 
 def main():
     while True:
         print_menu()
-        choice = input("Choose an option (1–5): ").strip()
+        choice = input("Choose an option (1–6): ").strip()
 
         if choice == "1":
             demo_dates()
@@ -140,10 +170,13 @@ def main():
         elif choice == "4":
             process_students_from_csv()
         elif choice == "5":
+            generate_report_csv()
+        elif choice == "6":
             print("Exiting... Goodbye!")
             break
         else:
-            print("Invalid choice. Please enter a number from 1 to 5.")
+            print("Invalid choice. Please enter a number from 1 to 6.")
+
 
 
 if __name__ == "__main__":
