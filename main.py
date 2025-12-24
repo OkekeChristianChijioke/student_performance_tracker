@@ -306,25 +306,11 @@ def generate_report_csv():
     write_student_summaries_to_csv(output_filepath, summaries)
 
 
-def generate_student_pdf_from_csv():
-    print("\n=== GENERATE STUDENT PDF REPORT FROM CSV ===")
-    filepath = "students_scores.csv"
-
-    student_name = input("Enter student's full name (as in CSV): ").strip()
-    if not student_name:
-        print("No name entered.")
-        return
-
-    try:
-        row = find_student_row_by_name(filepath, student_name)
-    except FileNotFoundError:
-        print(f"Could not find file: {filepath}")
-        return
-
-    if row is None:
-        print(f"Student '{student_name}' not found in {filepath}.")
-        return
-
+def build_report_data_from_row(row, filepath: str, comment: str | None = None):
+    """
+    Given a CSV row for a single student, build the report_data dict
+    expected by generate_student_pdf().
+    """
     # Build subjects list from all columns except 'name'
     subjects = []
     total_score = 0.0
@@ -345,22 +331,18 @@ def generate_student_pdf_from_csv():
         total_score += score
 
     if not subjects:
-        print("No valid subjects/scores found for this student.")
-        return
+        return None  # caller should handle
 
     num_subjects = len(subjects)
     average = total_score / num_subjects
-
-    # Reuse your grading function
     grade = get_grade(average)
 
-    # For now we don't have class, days_present, days_absent in CSV
-    # We'll leave them as placeholders or N/A
+    # For now, class, days_present, days_absent not yet in CSV → placeholders
     student_class = "N/A"
     days_present = None
     days_absent = None
 
-    # Optional: get overall class average using your existing helper
+    # Compute overall class average using existing summaries
     summaries = get_summaries_from_csv(filepath)
     if summaries:
         class_averages = [s["average"] for s in summaries]
@@ -368,13 +350,8 @@ def generate_student_pdf_from_csv():
     else:
         class_average = None
 
-    # Optional teacher comment
-    comment = input("Enter teacher's comment for this student (optional, Enter to skip): ").strip()
-    if not comment:
-        comment = None
-
     report_data = {
-        "name": row.get("name", student_name),
+        "name": row.get("name", "Unknown"),
         "student_class": student_class,
         "days_present": days_present,
         "days_absent": days_absent,
@@ -386,10 +363,85 @@ def generate_student_pdf_from_csv():
         "comment": comment,
     }
 
+    return report_data
+
+
+def generate_student_pdf_from_csv():
+    print("\n=== GENERATE STUDENT PDF REPORT FROM CSV ===")
+    filepath = "students_scores.csv"
+
+    student_name = input("Enter student's full name (as in CSV): ").strip()
+    if not student_name:
+        print("No name entered.")
+        return
+
+    try:
+        row = find_student_row_by_name(filepath, student_name)
+    except FileNotFoundError:
+        print(f"Could not find file: {filepath}")
+        return
+
+    if row is None:
+        print(f"Student '{student_name}' not found in {filepath}.")
+        return
+
+    comment = input("Enter teacher's comment for this student (optional, Enter to skip): ").strip()
+    if not comment:
+        comment = None
+
+    report_data = build_report_data_from_row(row, filepath, comment=comment)
+    if report_data is None:
+        print("No valid subjects/scores found for this student. Cannot generate report.")
+        return
+
     safe_name = report_data["name"].replace(" ", "_")
     output_path = f"{safe_name}_report.pdf"
 
     generate_student_pdf(report_data, output_path)
+
+
+def generate_pdfs_for_all_students_from_csv():
+    print("\n=== GENERATE PDF REPORTS FOR ALL STUDENTS FROM CSV ===")
+    filepath = "students_scores.csv"
+
+    try:
+        students_rows = read_students_scores_from_csv(filepath)
+    except FileNotFoundError:
+        print(f"Could not find file: {filepath}")
+        return
+
+    if not students_rows:
+        print("No student data found in CSV.")
+        return
+
+    # Ask once for a common teacher comment (optional)
+    common_comment = input(
+        "Enter a common teacher's comment for all students (optional, Enter to skip): "
+    ).strip()
+    if not common_comment:
+        common_comment = None
+
+    count_generated = 0
+
+    for row in students_rows:
+        name = row.get("name", "Unknown").strip()
+        if not name:
+            print("Skipping a row with no name.")
+            continue
+
+        report_data = build_report_data_from_row(row, filepath, comment=common_comment)
+        if report_data is None:
+            print(f"Skipping {name}: no valid subjects/scores.")
+            continue
+
+        safe_name = name.replace(" ", "_")
+        output_path = f"{safe_name}_report.pdf"
+
+        generate_student_pdf(report_data, output_path)
+        count_generated += 1
+
+    print(f"\nFinished generating {count_generated} PDF report(s).")
+
 
 
 # ---------- MENU SYSTEM ----------
@@ -405,14 +457,15 @@ def print_menu():
     print("7. Show class summary from CSV")
     print("8. Generate PDF report for one student (interactive)")
     print("9. Generate PDF report for one student (from CSV)")
-    print("10. Exit")
+    print("10. Generate PDF reports for ALL students (from CSV)")
+    print("11. Exit")
 
 
 
 def main():
     while True:
         print_menu()
-        choice = input("Choose an option (1–10): ").strip()
+        choice = input("Choose an option (1–11): ").strip()
 
         if choice == "1":
             demo_dates()
@@ -433,13 +486,12 @@ def main():
         elif choice == "9":
             generate_student_pdf_from_csv()
         elif choice == "10":
+            generate_pdfs_for_all_students_from_csv()
+        elif choice == "11":
             print("Exiting... Goodbye!")
             break
         else:
-            print("Invalid choice. Please enter a number from 1 to 10.")
-
-
-
+            print("Invalid choice. Please enter a number from 1 to 11.")
 
 
 if __name__ == "__main__":
