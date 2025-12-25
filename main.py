@@ -171,12 +171,17 @@ def get_summaries_from_csv(filepath: str):
 
         # Collect all numeric scores from the row except 'name'
         score_values = []
-        for key, value in row.items():
-            if key == "name":
-                continue
-            if value is None or value == "":
-                continue
+        
+        non_subject_fields = {"name", "class", "days_present", "days_absent"}
+
+    for key, value in row.items():
+        if key.lower() in non_subject_fields:
+            continue
+
+        try:
             score_values.append(float(value))
+        except (ValueError, TypeError):
+            continue
 
         if not score_values:
             print(f"No scores found for {name}. Skipping.")
@@ -315,9 +320,12 @@ def build_report_data_from_row(row, filepath: str, comment: str | None = None):
     subjects = []
     total_score = 0.0
 
+    non_subject_fields = {"name", "class", "days_present", "days_absent"}
+
     for key, value in row.items():
-        if key.lower() == "name":
+        if key.lower() in non_subject_fields:
             continue
+
         if value is None or value == "":
             continue
 
@@ -337,10 +345,22 @@ def build_report_data_from_row(row, filepath: str, comment: str | None = None):
     average = total_score / num_subjects
     grade = get_grade(average)
 
-    # For now, class, days_present, days_absent not yet in CSV → placeholders
-    student_class = "N/A"
-    days_present = None
-    days_absent = None
+    # Extract class and attendance from CSV
+    student_class = row.get("class", "N/A")
+
+    days_present = row.get("days_present")
+    days_absent = row.get("days_absent")
+
+    try:
+        days_present = int(days_present) if days_present is not None else None
+    except ValueError:
+        days_present = None
+
+    try:
+        days_absent = int(days_absent) if days_absent is not None else None
+    except ValueError:
+        days_absent = None
+
 
     # Compute overall class average using existing summaries
     summaries = get_summaries_from_csv(filepath)

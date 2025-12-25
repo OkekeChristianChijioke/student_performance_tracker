@@ -1,6 +1,3 @@
-name,math,english,science
-John Doe,75,68,80
-Jane Smith,90,85,88
-Peter Obi,55,60,58
-Ada Lovelace,100,98,95
-
+name,class,days_present,days_absent,math,english,science
+Ada Lovelace,JS2A,68,2,98,97,98
+Peter Obi,JS2A,62,8,60,55,58
